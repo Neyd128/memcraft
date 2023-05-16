@@ -1,10 +1,7 @@
 {
-    "name": "1359272/memcraft4gp",
-    "authors": [
-        {
-            "name": "Neyd128",
-            "email": "maksymilianklos128@gmail.com"
-        }
-    ],
-    "require": {}
+    "name": "cms_mk",
+    "require": {
+        "steampixel/simple-php-router": "^0.7.1",
+        "twig/twig": "^3.5"
+    }
 }

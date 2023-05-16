@@ -1,32 +1,128 @@
 <?php
 class Post {
-    static function upload(string $tempFileName) {
-        //funkcja działa bez tworzenia instancji obiektu
-        // uwaga wywołanie metodą Post::upload()
-        $uploadDir = "img/";
-        //sprawdź czy mamy do czynienia z obrazem
-        $imgInfo = getimagesize($tempFileName);
-        //jeśli plik nie jest poprawnym obrazem
-        if(!is_array($imgInfo)) {
-            die("BŁĄD: Przekazany plik nie jest obrazem!");
+    private int $id;
+    private string $title;
+    private string $imageUrl;
+    private string $timeStamp;
+    private int $authorId;
+    private string $authorName;
+
+    function __construct(int $i, string $f, string $t, string $title, int $authorId) {
+        $this->id = $i;
+        $this->imageUrl = $f;
+        $this->timeStamp = $t;
+        $this->title = $title;
+        $this->authorId = $authorId;
+        global $db;
+        $this->authorName = User::getNameById($this->authorId);
+
+    }
+
+    public function getFilename() {
+        return $this->imageUrl;
+    }
+
+    public function getTitle() {
+        return $this->title;
+    }
+
+    public function getTimestamp() {
+        return $this->timeStamp;
+    }
+    public function getAuthorName() {
+        return $this->authorName;
+    }
+
+    // static function get(int $id) : Post {
+    //     global $db;
+
+    //     $q = $db->prepare("SELECT * FROM post WHERE id = ?");
+    //     $q->bind_param('i', $id);
+    //     $q->execute();
+    //     $result = $q->get_result();
+    //     $resultArray = $result->fetch_array();
+    //     return new Post($resultArray['title'], $resultArray['filename'], $result['timestamp']);
+    // }
+    public function getId() {
+        return $this->id;
+    }
+
+    static function getLast() : Post {
+        global $db;
+        $query = $db->prepare("SELECT * FROM post ORDER BY timestamp DESC LIMIT 1");
+        $query->execute();
+        $result = $query->get_result();
+        $row = $result->fetch_assoc();
+        $p = new Post($row['id'], $row['filename'], $row['timestamp'], $row['title'], (int)$row['userId']);
+        return $p;
+    }
+
+    static function getPage(int $pageNumber = 1, int $postsPerPage = 10) : array {
+        global $db;
+
+        $q = $db->prepare("SELECT * FROM post WHERE removed = false ORDER BY timestamp DESC LIMIT ? OFFSET ?");
+        $offset = ($pageNumber -1) * $postsPerPage;
+        $q->bind_param('ii', $postsPerPage, $offset);
+        $q->execute();
+        $result = $q->get_result();
+        $postArray = array();
+        while($row = $result->fetch_array()) {
+        global $db;
+            $post = new Post($row['id'], $row['filename'], $row['timestamp'], $row['title'], $row['userId']);
+            array_push($postArray, $post);
         }
-        //wygeneruj _możliwie_ losowy ciąg liczbowy
+        return $postArray;
+    }
+
+    static function upload(string $tempFilename, string $title = "", int $userId) {
+        $targetDir = "img/";
+
+        $imageInfo = getimagesize($tempFilename);
+            
+        if (!is_array($imageInfo)) {
+            die("Zły format");
+        }
         $randomSeed = rand(10000,99999) . hrtime(true);
-        //wygeneruj hash, który będzie nową nazwą pliku
         $hash = hash("sha256", $randomSeed);
-        //wygeneruj kompletną nazwę pliku
-        $targetFileName = $uploadDir . $hash . ".webp";
-        //sprawdź czy plik przypadkiem już nie istnieje
+
+        $targetFileName = $targetDir . $hash . ".webp";
         if(file_exists($targetFileName)) {
-            die("BŁĄD: Podany plik już istnieje!");
+            die("Zmień nazwę bo juz jest zajeta");
         }
-        //zaczytujemy cały obraz z folderu tymczasowego do stringa
-        $imageString = file_get_contents($tempFileName);
-        //generujemy obraz jako obiekt klasy GDImage
-        //@ przed nazwa funkcji powoduje zignorowanie ostrzeżeń
+
+        $imageString = file_get_contents($tempFilename);
+
         $gdImage = @imagecreatefromstring($imageString);
-        //zapisz plik do docelowej lokalizacji
+
         imagewebp($gdImage, $targetFileName);
+
+        global $db;
+
+        $q = "INSERT post (id, timestamp, filename, ip, title, userId, removed) VALUES (NULL, ?, ?, ?, ?, ?, false)";
+        $preparedQ = $db->prepare($q);
+
+        $date = date('Y-m-d H:i:s');
+        $preparedQ->bind_param('ssssi', $date, $targetFileName, $_SERVER['REMOTE_ADDR'], $title, $userId);
+        $result = $preparedQ->execute();
+        if (!$result) {
+            die("Błąd bazy danych");
+        }
+    }
+
+    static function remove(int $id) : bool {
+        global $db;
+        $q = $db->prepare("UPDATE post SET removed = true WHERE id = ?");
+        $q->bind_param('i', $id);
+        if ($q->execute()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public function getLikes() {
+        $likes = Likes::getLikes($this->getId());
+        return $likes;
     }
 }
 

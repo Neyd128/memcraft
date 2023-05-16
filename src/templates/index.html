@@ -1,0 +1,39 @@
+{%include 'header.html'%}
+<a href="logout">Wyloguj</a>
+<div id="loggedUser">Zalogowany jako: {{ user.getName() }} </div>
+<h1>MEMCRAFT - Posty</h1>
+
+<div id="pageContainer">
+    <h1>{{pageTitle}}</h1>
+    {# jeśli użytkownik jest zalogowany to pokaż #}
+    {% if user is defined %}
+
+    
+    <a href="upload">Wgraj mema</a>
+    <br><br>
+    {% else %}
+    <a href="login">Logowanie</a>
+    <br>
+    <a href="register">Rejestracja</a>
+    <br><br>
+    {% endif %}
+</div>
+{% for post in posts %}
+
+<div class='post'>
+    <div class='title'>
+        <h2>{{ post.getTitle() }}</h2>
+        Autor: {{post.getAuthorName() }}<br>
+        {{ post.getTimestamp() }}<br>
+    </div>
+    <div class='vote'>
+        <button onclick="location.href='like/{{ post.getId() }}'" class='upvote' type='button'><img src="skype.gif" height="55px" alt=""></button>
+        <div class='votecounter'>{{ post.getLikes() }}</div>
+        <button onclick="location.href='dislike/{{ post.getId() }}'" class='downvote' type='button'><img src="dislike.gif" height="40px" alt=""></button>
+        
+    </div>
+    
+<img class='img' src="{{ post.getFilename() }}"><br></div>
+{% endfor %}
+
+{%include 'footer.html'%}
